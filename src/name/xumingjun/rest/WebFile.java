@@ -2,11 +2,9 @@ package name.xumingjun.rest;
 
 import java.io.File;
 import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.io.PrintWriter;
+import java.net.URI;
 
-import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.Consumes;
@@ -26,6 +24,8 @@ import org.apache.commons.fileupload.ProgressListener;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
+import com.google.gson.Gson;
+
 @Path("/files")
 public class WebFile {
 
@@ -38,6 +38,7 @@ public class WebFile {
 	private final static int BUFF_SIZE = 1024;
 	private final static int MAX_FILE_SIZE = 1024 * 1024 * 1024;
 	public final static File PARENCT_DIR = new File("/home/mingjun/www/share/");
+	public final static String PARENCT_DIR_URL = "/share/";
 	
 	static {
 		if(!PARENCT_DIR.isDirectory()) {
@@ -48,15 +49,11 @@ public class WebFile {
 		}
 	}
 	
-	private static DateFormat df = new SimpleDateFormat("HH:mm:ss.SSS");
 	@POST
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public Response upload(@QueryParam("callback") @DefaultValue("console.debug") String callbackName) {
-		response.setHeader("Content-Type", MediaType.TEXT_HTML);
-		ServletOutputStream out = null;
-		
-		
-		String fileUrl = "/share/";
+		response.setHeader("Content-Type", MediaType.TEXT_HTML+";charset=UTF-8");
+		String uploadFileName = null; 
 		
 		DiskFileItemFactory factory = new DiskFileItemFactory();
 		factory.setSizeThreshold(BUFF_SIZE);
@@ -66,8 +63,9 @@ public class WebFile {
 		upload.setSizeMax(MAX_FILE_SIZE);
 		
 		
+		PrintWriter out = null;
 		try {
-			out = response.getOutputStream();
+			out = response.getWriter();
 			writeHtmlHead(out);
 			setProgressListener(upload);
 			
@@ -80,19 +78,22 @@ public class WebFile {
 						newFile = createPeerFile(PARENCT_DIR, fileName);
 					}
 					fi.write(newFile);
-					fileUrl += newFile.getName();
+					uploadFileName = newFile.getName();
 				}
 			}
-			writeHtmlScript(out, callbackName, AbstractJsonBean.gson.toJson(fileUrl));
+			Gson gson =  AbstractJsonBean.gson;
+			writeHtmlScript(out, 
+					callbackName,
+					gson.toJson(uploadFileName), 
+					gson.toJson(new URI(
+							request.getScheme(), null, 
+							request.getLocalAddr(), -1, 
+							PARENCT_DIR_URL+uploadFileName, null, null)));
 			writeHtmlEnd(out);
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				if(null != out) out.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} 
+			if(null != out) out.close();
 		}
 		
 		return Response.ok().build();
@@ -110,19 +111,12 @@ public class WebFile {
 				int percentage = (int) Math.round(pBytesRead*100/(double)(pContentLength));
 				long now = System.currentTimeMillis();
 				if( percentage > lastPercentage && now - lastTime > 100) { // every +1% && after 0.1s
-					
-					StringBuffer sb = new StringBuffer();
-					sb.append("time =").append(df.format(new Date(now))).append("\t")
-						.append(percentage).append("% ")
-						.append("out of ").append(pContentLength).append(" Bytes");
-					String message = sb.toString();
-					
 					// write to session object
 					progress.uploadSize = pBytesRead;
 					progress.totalSize = pContentLength;
 					progress.percentage = percentage;
 					progress.timePoint = now;
-					System.out.println(message);//TODO
+					System.out.println(progress.toJson());
 					
 					//set for last
 					lastPercentage = percentage;
@@ -152,23 +146,32 @@ public class WebFile {
 		return newFile;
 	}
 
-	protected void writeHtmlHead(ServletOutputStream out) throws IOException {
+	protected void writeHtmlHead(PrintWriter out) throws IOException {
 		out.println("<!DOCTYPE html>");
 		out.println("<html><head><meta charset='UTF-8'></head><body>");
 		out.flush();
 	}
 	
-	protected void writeHtmlScript(ServletOutputStream out, String callback, String arg)  throws IOException {
-		String template = "<script type='text/javascript'>{callback} && {callback}({arg});</script>";
-		out.println(template.replaceAll("\\{callback\\}", callback).replaceAll("\\{arg\\}", arg));
+	protected void writeHtmlScript(PrintWriter out, String callback, String ... args)  throws IOException {
+		final String template = "<script type='text/javascript'>{callback} && {callback}({argList});</script>";
+		StringBuffer argList = new StringBuffer();
+		int last = args.length - 1;
+		for(int i=0;i < last; i++) {
+			argList.append(args[i]).append(',');
+		}
+		if (last >= 0) {
+			argList.append(args[last]);
+		}
+		System.out.println(template.replaceAll("\\{callback\\}", callback).replaceAll("\\{argList\\}", argList.toString()));//TODO 
+		out.println(template.replaceAll("\\{callback\\}", callback).replaceAll("\\{argList\\}", argList.toString()));
 		out.flush();
 	}
-	protected void writeHtmlText(ServletOutputStream out, String message)  throws IOException {
+	protected void writeHtmlText(PrintWriter out, String message)  throws IOException {
 		out.println(message);
 		out.flush();
 	}
 	
-	protected void writeHtmlEnd(ServletOutputStream out) throws IOException {
+	protected void writeHtmlEnd(PrintWriter out) throws IOException {
 		out.println("</body></html>");
 		out.flush();
 	}
@@ -182,15 +185,16 @@ public class WebFile {
 	
 	@GET
 	public Response getUploadInfo(@QueryParam("callback") @DefaultValue("console.debug") String callbackName) {
+		
 		response.setHeader("Content-Type", MediaType.TEXT_HTML);
-		ServletOutputStream out = null;
+		PrintWriter out = null;
 		try {
-			out = response.getOutputStream();
+			out = response.getWriter();
 			writeHtmlHead(out);
 			for(int i=0;i<10;i++) {
 				writeHtmlScript(out, callbackName, String.valueOf(i));
 				try {
-					Thread.sleep(1000);
+					Thread.sleep(100);
 				} catch (InterruptedException e) {
 				}
 			}
@@ -201,11 +205,7 @@ public class WebFile {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			try {
-				if(null != out) out.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			} 
+			if(null != out) out.close();
 		}
 		
 		return Response.ok().build();
