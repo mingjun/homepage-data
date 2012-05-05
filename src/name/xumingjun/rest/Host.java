@@ -15,6 +15,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 import name.xumingjun.rest.bean.AbstractJsonBean;
+import name.xumingjun.util.Stream;
 
 @Path("/host")
 
@@ -30,20 +31,20 @@ public class Host {
 //	 env.put("VAR2", env.get("VAR1") + "suffix");
 //	 pb.directory(new File("myDir"));
 //	 Process p = pb.start();
-	protected String generalJSON = null;
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public String getGeneral() {
-		if(null == generalJSON) {
-			generalJSON = about();
+		//get cached hardware info, if possible
+		if(null == hardwareInfo) {
+			hardwareInfo = getHardware();
 		}
-		return generalJSON;
+		return new HostInfo(hardwareInfo, getUpTime()).toJson();
 	}
-	static final String SYSTEM_INFOMATION = "System Information";
-	static final String INFO_REGEXP = "\\s+([-\\w ]+)\\: (.+)";
 	
-	public String about() {
-		
+	static final String SYSTEM_INFOMATION = "System Information";
+	static final String SYSTEM_INFOMATION_REGEXP = "\\s+([-\\w ]+)\\: (.+)";
+	static Map<String,String> hardwareInfo = null; // hardware info is barely changed
+	public Map<String,String> getHardware() {
 		InputStream in = null;
 		Map<String,String> hw = new HashMap<String,String>();
 		try {
@@ -56,7 +57,7 @@ public class Host {
 				if(!findStart){
 					findStart = line.matches(SYSTEM_INFOMATION);
 				} else {
-					Pattern pat = Pattern.compile(INFO_REGEXP);
+					Pattern pat = Pattern.compile(SYSTEM_INFOMATION_REGEXP);
 					Matcher m = pat.matcher(line);
 					if(m.matches()) {
 						hw.put(m.group(1), m.group(2));
@@ -68,19 +69,37 @@ public class Host {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			if(null != in) {
-				try {
-					in.close();
-				} catch (IOException e) { }
-			}
+			Stream.close(in);
 		}
-		return new HostInfo(hw).toJson();
+		return hw;
+	}
+	
+	static final String UP_TIME_REGEXP = ".*up\\s+(\\d+\\s+\\w+(,\\s+\\d+:\\d+)|\\d+:\\d+),.*";
+	public String getUpTime() {
+		InputStream in = null;
+		String uptime = null;
+		try {
+			ProcessBuilder pb = new ProcessBuilder("uptime");
+			in = pb.start().getInputStream();
+			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			
+			Pattern pat = Pattern.compile(UP_TIME_REGEXP);
+			Matcher m = pat.matcher(br.readLine());
+			uptime = m.matches() ? m.group(1) : "unknown duration";
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			Stream.close(in);
+		}
+		return uptime;
 	}
 
 	class HostInfo extends AbstractJsonBean {
 		public Map<String, String> hardware;
-		public HostInfo(Map<String, String> hw) {
+		public String upTime;
+		public HostInfo(Map<String, String> hw, String uptime) {
 			this.hardware = hw;
+			this.upTime = uptime;
 		}
 	}
 }
