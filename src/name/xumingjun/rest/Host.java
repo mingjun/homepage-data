@@ -74,7 +74,7 @@ public class Host {
 		return hw;
 	}
 	
-	static final String UP_TIME_REGEXP = ".*up\\s+(\\d+\\s+\\w+(,\\s+\\d+:\\d+)|\\d+:\\d+),.*";
+	
 	public String getUpTime() {
 		InputStream in = null;
 		String uptime = null;
@@ -82,16 +82,20 @@ public class Host {
 			ProcessBuilder pb = new ProcessBuilder("uptime");
 			in = pb.start().getInputStream();
 			BufferedReader br = new BufferedReader(new InputStreamReader(in));
-			
-			Pattern pat = Pattern.compile(UP_TIME_REGEXP);
-			Matcher m = pat.matcher(br.readLine());
-			uptime = m.matches() ? m.group(1) : "unknown duration";
+			uptime = parseUpTime(br.readLine());
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
 			Stream.close(in);
 		}
 		return uptime;
+	}
+	
+	static final String UP_TIME_REGEXP = ".+up\\s+(.+),\\s+\\d\\s+user.+";
+	String parseUpTime(String raw) {
+		Pattern pat = Pattern.compile(UP_TIME_REGEXP);
+		Matcher m = pat.matcher(raw);
+		return m.matches() ? m.group(1) : "unknown duration";
 	}
 
 	class HostInfo extends AbstractJsonBean {
