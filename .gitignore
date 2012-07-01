@@ -1,5 +1,9 @@
 *.class
 
+
+build/*
+WebContent/*
+
 #hidden file
 .*
 *~
