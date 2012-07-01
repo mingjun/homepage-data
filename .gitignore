@@ -1,0 +1,10 @@
+*.class
+
+#hidden file
+.*
+*~
+
+# Package Files #
+*.jar
+*.war
+*.ear
