@@ -17,7 +17,7 @@ import javax.servlet.http.HttpServletResponse;
 public class CrossDomainFilter implements Filter {
 
     /**
-     * Default constructor. 
+     * Default constructor.
      */
     public CrossDomainFilter() {
     }

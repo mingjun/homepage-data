@@ -1,45 +1,43 @@
 package name.xumingjun.rest;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Observable;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 
 import name.xumingjun.rest.bean.AbstractJsonBean;
+import name.xumingjun.util.SessionAccessor;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.ProgressListener;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
 
-import com.google.gson.Gson;
-
 @Path("/files")
 public class WebFile {
 
 	@Context
 	private HttpServletRequest request;
-	
-	@Context 
-	private HttpServletResponse response;
-	
 	private final static int BUFF_SIZE = 1024;
 	private final static int MAX_FILE_SIZE = 1024 * 1024 * 1024;
 	public final static File PARENCT_DIR = new File("/home/mingjun/www/share/");
 	public final static String PARENCT_DIR_URL = "/share/";
-	
+	public final static String ATTRIBUTE_NAME_IN_SESSION = "file-upload-status-Observable";
+	class FileInfo {
+		String srcName, serverCopyURL;
+	}
+	public Map<String, FileInfo> fileLookup = new HashMap<String, FileInfo>();
 	static {
 		if(!PARENCT_DIR.isDirectory()) {
 			PARENCT_DIR.delete();
@@ -48,28 +46,23 @@ public class WebFile {
 			PARENCT_DIR.mkdirs();
 		}
 	}
-	
 	@POST
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
-	public Response upload(@QueryParam("callback") @DefaultValue("console.debug") String callbackName) {
-		response.setHeader("Content-Type", MediaType.TEXT_HTML+";charset=UTF-8");
-		String uploadFileName = null; 
-		
+	public String upload() {
+		UploadProgressObservable notifier = createObservableToSession(request.getSession());
+		String result = "{}";
 		DiskFileItemFactory factory = new DiskFileItemFactory();
 		factory.setSizeThreshold(BUFF_SIZE);
 		factory.setRepository(PARENCT_DIR);
 
 		ServletFileUpload upload = new ServletFileUpload(factory);
 		upload.setSizeMax(MAX_FILE_SIZE);
-		
-		
-		PrintWriter out = null;
+		UploadedResult jsonResult = new UploadedResult();
 		try {
-			out = response.getWriter();
-			writeHtmlHead(out);
-			setProgressListener(upload);
-			
+			setProgressListener(upload, notifier);
+			int index = 0;
 			for (Object item : upload.parseRequest(request)) {
+				index ++;
 				FileItem fi = (FileItem) item;
 				String fileName = fi.getName();
 				if (!fi.isFormField() && fileName.length() != 0 ) {
@@ -78,56 +71,49 @@ public class WebFile {
 						newFile = createPeerFile(PARENCT_DIR, fileName);
 					}
 					fi.write(newFile);
-					uploadFileName = newFile.getName();
+					String uploadFileName = newFile.getName();
+					String uploadFileUrl = new URI(
+							request.getScheme(), null,
+							request.getLocalAddr(), -1,
+							PARENCT_DIR_URL+uploadFileName, null, null).toString();
+					jsonResult.addDetail(index, fileName, uploadFileName, uploadFileUrl);
+					System.out.println(index + "\t" + fileName + "\t->\t" + uploadFileUrl);
 				}
 			}
-			Gson gson =  AbstractJsonBean.gson;
-			writeHtmlScript(out, 
-					callbackName,
-					gson.toJson(uploadFileName), 
-					gson.toJson(new URI(
-							request.getScheme(), null, 
-							request.getLocalAddr(), -1, 
-							PARENCT_DIR_URL+uploadFileName, null, null)));
-			writeHtmlEnd(out);
+			result = jsonResult.toJson();
+			notifier.sendMessage(result);
 		} catch (Exception e) {
 			e.printStackTrace();
-		} finally {
-			if(null != out) out.close();
 		}
-		
-		return Response.ok().build();
+		return result;
 	}
-	
-	public void setProgressListener(ServletFileUpload upload) {
+	void setProgressListener(ServletFileUpload upload, final UploadProgressObservable notifier) {
 		final long startTime = System.currentTimeMillis();
 		final UploadProgress progress = new UploadProgress();
-		
-		upload.setProgressListener(new ProgressListener(){
+		upload.setProgressListener(new ProgressListener() {
 			private int lastPercentage = 0;
 			private long lastTime = startTime;
 			@Override
-			public void update(long pBytesRead, long pContentLength, int _) {
+			public void update(long pBytesRead, long pContentLength, int index) {
 				int percentage = (int) Math.round(pBytesRead*100/(double)(pContentLength));
 				long now = System.currentTimeMillis();
 				if( percentage > lastPercentage && now - lastTime > 100) { // every +1% && after 0.1s
-					// write to session object
+					// write to an observable target in session
 					progress.uploadSize = pBytesRead;
 					progress.totalSize = pContentLength;
 					progress.percentage = percentage;
+					progress.fileIndex = index;
 					progress.timePoint = now;
 					System.out.println(progress.toJson());
-					
-					//set for last
+					notifier.sendMessage(progress.toJson());
+					//set current as last, for next loop
 					lastPercentage = percentage;
 					lastTime = now;
 				}
 			}
 		});
 	}
-	
-	
-	public File createPeerFile(File dir, String fileName) {
+	File createPeerFile(File dir, String fileName) {
 		String ext = null, pre = null;
 		int index = fileName.lastIndexOf('.');
 		if(index >= 0) { // .ext
@@ -146,68 +132,45 @@ public class WebFile {
 		return newFile;
 	}
 
-	protected void writeHtmlHead(PrintWriter out) throws IOException {
-		out.println("<!DOCTYPE html>");
-		out.println("<html><head><meta charset='UTF-8'></head><body>");
-		out.flush();
-	}
-	
-	protected void writeHtmlScript(PrintWriter out, String callback, String ... args)  throws IOException {
-		final String template = "<script type='text/javascript'>{callback} && {callback}({argList});</script>";
-		StringBuffer argList = new StringBuffer();
-		int last = args.length - 1;
-		for(int i=0;i < last; i++) {
-			argList.append(args[i]).append(',');
+	public static class UploadProgressObservable extends Observable {
+		public void sendMessage(String value) {
+			this.setChanged();
+			this.notifyObservers(value);
 		}
-		if (last >= 0) {
-			argList.append(args[last]);
-		}
-		System.out.println(template.replaceAll("\\{callback\\}", callback).replaceAll("\\{argList\\}", argList.toString()));//TODO 
-		out.println(template.replaceAll("\\{callback\\}", callback).replaceAll("\\{argList\\}", argList.toString()));
-		out.flush();
 	}
-	protected void writeHtmlText(PrintWriter out, String message)  throws IOException {
-		out.println(message);
-		out.flush();
+	public static UploadProgressObservable createObservableToSession(HttpSession session) {
+		UploadProgressObservable obs = new UploadProgressObservable();
+		return SessionAccessor.touchSessionAttribute(session, ATTRIBUTE_NAME_IN_SESSION, UploadProgressObservable.class, obs);
 	}
-	
-	protected void writeHtmlEnd(PrintWriter out) throws IOException {
-		out.println("</body></html>");
-		out.flush();
+}
+abstract class FileUploadBean extends AbstractJsonBean {
+	String messageType;
+	public FileUploadBean() {
+		messageType = this.getClass().getSimpleName();
 	}
-	
-	class UploadProgress extends AbstractJsonBean{
-		long uploadSize;
-		long totalSize;
-		int percentage;
-		long timePoint;
-	}
-	
-	@GET
-	public Response getUploadInfo(@QueryParam("callback") @DefaultValue("console.debug") String callbackName) {
-		
-		response.setHeader("Content-Type", MediaType.TEXT_HTML);
-		PrintWriter out = null;
-		try {
-			out = response.getWriter();
-			writeHtmlHead(out);
-			for(int i=0;i<10;i++) {
-				writeHtmlScript(out, callbackName, String.valueOf(i));
-				try {
-					Thread.sleep(100);
-				} catch (InterruptedException e) {
-				}
-			}
-			
-			writeHtmlEnd(out);
-			
-			
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			if(null != out) out.close();
-		}
-		
-		return Response.ok().build();
+}
+class UploadProgress extends FileUploadBean {
+	long uploadSize;
+	long totalSize;
+	int percentage;
+	int fileIndex;
+	long timePoint;
+}
+
+class DetailedResult {
+	int index;
+	String fileName;
+	String uploadedName;
+	String uplaodedUrl;
+}
+class UploadedResult extends FileUploadBean {
+	List<DetailedResult> details = new ArrayList<DetailedResult>();
+	public void addDetail(int index, String src, String target, String url) {
+		DetailedResult d = new DetailedResult();
+		d.index = index;
+		d.fileName = src;
+		d.uploadedName = target;
+		d.uplaodedUrl = url;
+		details.add(d);
 	}
 }

@@ -15,14 +15,20 @@ import javax.servlet.ServletResponse;
 import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
 
+import name.xumingjun.rest.bean.VisitInfo;
+import name.xumingjun.util.CodeBeautifier;
+
 /**
  * Servlet Filter implementation class VisitFilter
  */
 @WebFilter(description = "user visit", urlPatterns = { "/*" })
 public class VisitFilter implements Filter {
-	public final static String LOG_FILE = "/home/mingjun/www/visit.log";
-	public final static String LOG_SEPERATER = "  |  ";
-	
+	public static String buildLine() {
+		return null;
+	}
+	public static String parseLine() {
+		return null;
+	}
 	private PrintStream out = null;
 
 	/**
@@ -30,13 +36,7 @@ public class VisitFilter implements Filter {
 	 */
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
 		HttpServletRequest req = (HttpServletRequest) request;
-		StringBuffer sb = new StringBuffer();
-		sb.append(String.valueOf(System.currentTimeMillis()))
-			.append(LOG_SEPERATER)
-			.append(req.getRemoteAddr())
-			.append(LOG_SEPERATER)
-			.append(req.getHeader("user-agent"));
-		out.println(sb.toString());
+		out.println(new VisitInfo(System.currentTimeMillis(), req.getRemoteAddr(), req.getHeader("user-agent")));
 		out.flush();
 		// pass the request along the filter chain
 		chain.doFilter(request, response);
@@ -47,20 +47,17 @@ public class VisitFilter implements Filter {
 	 */
 	public void init(FilterConfig fConfig) throws ServletException {
 		try {
-			out = new PrintStream(new BufferedOutputStream(new FileOutputStream(LOG_FILE, true)));
+			out = new PrintStream(new BufferedOutputStream(new FileOutputStream(VisitInfo.LOG_FILE, true)));
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		}
 	}
-	
 	/**
 	 * @see Filter#destroy()
 	 */
 	public void destroy() {
-		if(null != out) {
-			out.close();
-			out = null;
-		}
+		CodeBeautifier.closeStream(out);
+		out = null;
 	}
 
 }
