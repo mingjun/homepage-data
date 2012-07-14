@@ -4,15 +4,18 @@ import java.io.File;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Observable;
+import java.util.Queue;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
@@ -33,7 +36,8 @@ public class WebFile {
 	private final static int MAX_FILE_SIZE = 1024 * 1024 * 1024;
 	public final static File PARENCT_DIR = new File("/home/mingjun/www/share/");
 	public final static String PARENCT_DIR_URL = "/share/";
-	public final static String ATTRIBUTE_NAME_IN_SESSION = "file-upload-status-Observable";
+	public final static String OBSERVERABLE_KEY_IN_SESSION = "file-upload-status-Observable";
+	public final static String QUEUE_KEY_IN_SESSION = "file-upload-status-queue";
 	class FileInfo {
 		String srcName, serverCopyURL;
 	}
@@ -50,14 +54,15 @@ public class WebFile {
 	@Consumes(MediaType.MULTIPART_FORM_DATA)
 	public String upload() {
 		UploadProgressObservable notifier = createObservableToSession(request.getSession());
-		String result = "{}";
+		Queue<UploadedResult> uploadedFiles = createResultQueueToSession(request.getSession());
+		ArrayList<UploadedResult> array = new ArrayList<UploadedResult>();
 		DiskFileItemFactory factory = new DiskFileItemFactory();
 		factory.setSizeThreshold(BUFF_SIZE);
 		factory.setRepository(PARENCT_DIR);
 
 		ServletFileUpload upload = new ServletFileUpload(factory);
 		upload.setSizeMax(MAX_FILE_SIZE);
-		UploadedResult jsonResult = new UploadedResult();
+
 		try {
 			setProgressListener(upload, notifier);
 			int index = 0;
@@ -71,21 +76,22 @@ public class WebFile {
 						newFile = createPeerFile(PARENCT_DIR, fileName);
 					}
 					fi.write(newFile);
-					String uploadFileName = newFile.getName();
-					String uploadFileUrl = new URI(
+					UploadedResult fileInfo = new UploadedResult();
+					fileInfo.index = index;
+					fileInfo.fileName = fileName;
+					fileInfo.uploadedName =  newFile.getName();
+					fileInfo.uploadedUrl = new URI(
 							request.getScheme(), null,
 							request.getLocalAddr(), -1,
-							PARENCT_DIR_URL+uploadFileName, null, null).toString();
-					jsonResult.addDetail(index, fileName, uploadFileName, uploadFileUrl);
-					System.out.println(index + "\t" + fileName + "\t->\t" + uploadFileUrl);
+							PARENCT_DIR_URL+ fileInfo.uploadedName, null, null).toString();
+					uploadedFiles.offer(fileInfo); //enqueue
+					array.add(fileInfo);
 				}
 			}
-			result = jsonResult.toJson();
-			notifier.sendMessage(result);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return result;
+		return AbstractJsonBean.gson.toJson(array);
 	}
 	void setProgressListener(ServletFileUpload upload, final UploadProgressObservable notifier) {
 		final long startTime = System.currentTimeMillis();
@@ -104,7 +110,6 @@ public class WebFile {
 					progress.percentage = percentage;
 					progress.fileIndex = index;
 					progress.timePoint = now;
-					System.out.println(progress.toJson());
 					notifier.sendMessage(progress.toJson());
 					//set current as last, for next loop
 					lastPercentage = percentage;
@@ -132,6 +137,15 @@ public class WebFile {
 		return newFile;
 	}
 
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public String GetUploadResult() {
+		Queue<UploadedResult> uploadedFiles = createResultQueueToSession(request.getSession());
+		String result = AbstractJsonBean.gson.toJson(uploadedFiles);
+		uploadedFiles.clear();
+		return result;
+	}
+
 	public static class UploadProgressObservable extends Observable {
 		public void sendMessage(String value) {
 			this.setChanged();
@@ -140,16 +154,17 @@ public class WebFile {
 	}
 	public static UploadProgressObservable createObservableToSession(HttpSession session) {
 		UploadProgressObservable obs = new UploadProgressObservable();
-		return SessionAccessor.touchSessionAttribute(session, ATTRIBUTE_NAME_IN_SESSION, UploadProgressObservable.class, obs);
+		return SessionAccessor.touchSessionAttribute(session, OBSERVERABLE_KEY_IN_SESSION, UploadProgressObservable.class, obs);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static Queue<UploadedResult> createResultQueueToSession(HttpSession session) {
+		Queue<UploadedResult> queue = new LinkedList<UploadedResult>();
+		return SessionAccessor.touchSessionAttribute(session, QUEUE_KEY_IN_SESSION, Queue.class, queue);
 	}
 }
-abstract class FileUploadBean extends AbstractJsonBean {
-	String messageType;
-	public FileUploadBean() {
-		messageType = this.getClass().getSimpleName();
-	}
-}
-class UploadProgress extends FileUploadBean {
+
+class UploadProgress extends AbstractJsonBean {
 	long uploadSize;
 	long totalSize;
 	int percentage;
@@ -157,20 +172,9 @@ class UploadProgress extends FileUploadBean {
 	long timePoint;
 }
 
-class DetailedResult {
+class UploadedResult extends AbstractJsonBean {
 	int index;
 	String fileName;
 	String uploadedName;
-	String uplaodedUrl;
-}
-class UploadedResult extends FileUploadBean {
-	List<DetailedResult> details = new ArrayList<DetailedResult>();
-	public void addDetail(int index, String src, String target, String url) {
-		DetailedResult d = new DetailedResult();
-		d.index = index;
-		d.fileName = src;
-		d.uploadedName = target;
-		d.uplaodedUrl = url;
-		details.add(d);
-	}
+	String uploadedUrl;
 }
