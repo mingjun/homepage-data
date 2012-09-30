@@ -23,12 +23,6 @@ import name.xumingjun.util.CodeBeautifier;
  */
 @WebFilter(description = "user visit", urlPatterns = { "/*" })
 public class VisitFilter implements Filter {
-	public static String buildLine() {
-		return null;
-	}
-	public static String parseLine() {
-		return null;
-	}
 	private PrintStream out = null;
 
 	/**
