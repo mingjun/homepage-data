@@ -50,7 +50,7 @@ public class VisitFilter implements Filter {
 	 * @see Filter#destroy()
 	 */
 	public void destroy() {
-		CodeBeautifier.closeStream(out);
+		CodeBeautifier.close(out);
 		out = null;
 	}
 
