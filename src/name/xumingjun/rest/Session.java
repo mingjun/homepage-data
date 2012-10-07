@@ -10,8 +10,8 @@ import javax.ws.rs.core.MediaType;
 import name.xumingjun.rest.bean.AbstractJsonBean;
 /**
  *
- * @author Mingjun
  * handle web session related RESTful calls
+ * @author Mingjun
  *
  */
 @Path("/session")

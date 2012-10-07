@@ -24,7 +24,11 @@ import javax.ws.rs.core.MediaType;
 import name.xumingjun.rest.bean.AbstractJsonBean;
 import name.xumingjun.rest.bean.VisitInfo;
 import name.xumingjun.util.CodeBeautifier;
-
+/**
+ * handle host(computer/server) related RESTful calls
+ * @author mingjun
+ *
+ */
 @Path("/host")
 public class Host {
 //	Runtime rt = Runtime.getRuntime();
@@ -107,6 +111,10 @@ public class Host {
 			this.upTime = uptime;
 		}
 	}
+	/**
+	 * get Visit statistics
+	 * @return JSON
+	 */
 	@GET
 	@Path("/statistics")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -157,30 +165,44 @@ class MonthlyStatisticsBuilder {
 	public static long getBaseTime () {
 		return BaseTime.getTime();
 	}
-	Map<Long, Set<String>> data4SingleIP = new HashMap<Long, Set<String>>();
+	// map: time(month) -> a set of IP
+	Map<Long, Set<String>> data4UniqueIPs = new HashMap<Long, Set<String>>();
 	Calendar cal = Calendar.getInstance();
+	private final long START_OF_CURRENT_MONTH = unifyTime(System.currentTimeMillis());
+	/**
+	 * accumulate one visit-info into the statistics
+	 * @param info
+	 */
 	public void accumulate(VisitInfo info) {
-		cal.setTimeInMillis(info.timestamp);
+		long key = unifyTime(info.timestamp);
+		Set<String> ips =  null;
+		if(!data4UniqueIPs.containsKey(key)) {
+			ips = new HashSet<String>();
+			data4UniqueIPs.put(key, ips);
+		} else {
+			ips = data4UniqueIPs.get(key);
+		}
+		ips.add(info.remoteAddr);
+	}
+	// unify the time to the start-time of the nearest month
+	private long unifyTime(long t) {
+		cal.setTimeInMillis(t);
 		int year = cal.get(Calendar.YEAR);
 		int month = cal.get(Calendar.MONTH);
 		cal.setTimeInMillis(getBaseTime());
 		cal.set(Calendar.YEAR, year);
 		cal.set(Calendar.MONTH, month);
-		long key = cal.getTimeInMillis();
-		Set<String> ips =  null;
-		if(!data4SingleIP.containsKey(key)) {
-			ips = new HashSet<String>();
-			data4SingleIP.put(key, ips);
-		} else {
-			ips = data4SingleIP.get(key);
-		}
-		ips.add(info.remoteAddr);
+		return cal.getTimeInMillis();
 	}
-	private List<AxisPoint> buildAxisPoints4SingleIp() {
+	private List<AxisPoint> buildAxisPoints4UniqueIps() {
 		cal.setTimeInMillis(getBaseTime());
 		int baseYear = cal.get(Calendar.YEAR);
 		int baseMonth = cal.get(Calendar.MONTH);
-		Set<Long> keyset = data4SingleIP.keySet();
+		Set<Long> keyset = data4UniqueIPs.keySet();
+		// if more that 1 month, ignore the current month
+		if(keyset.size() > 1) {
+			data4UniqueIPs.remove(START_OF_CURRENT_MONTH);
+		}
 		ArrayList<AxisPoint> array = new ArrayList<AxisPoint>(keyset.size());
 		for(Long key: keyset) {
 			AxisPoint item = new AxisPoint();
@@ -188,7 +210,7 @@ class MonthlyStatisticsBuilder {
 			int year = cal.get(Calendar.YEAR);
 			int month = cal.get(Calendar.MONTH);
 			item.x = (year-baseYear)*12 + month-baseMonth;
-			item.detail = data4SingleIP.get(key);
+			item.detail = data4UniqueIPs.get(key);
 			item.y = item.detail.size();
 			array.add(item);
 		}
@@ -215,7 +237,7 @@ class MonthlyStatisticsBuilder {
 	}
 	public String buildAll() {
 		MonthlyStatistics o = new MonthlyStatistics();
-		o.points = this.buildAxisPoints4SingleIp();
+		o.points = this.buildAxisPoints4UniqueIps();
 		o.xAxisLables = this.buildAxisLabels(o.points);
 		return o.toJson();
 	}
@@ -230,10 +252,6 @@ class AxisPoint implements Comparable<AxisPoint>{
 		return this.x - other.x;
 	}
 }
-
-//class AxisPointWithDetail<DetailType> extends AxisPoint {
-//	DetailType detail;
-//}
 
 class AxisLabel {
 	int value;

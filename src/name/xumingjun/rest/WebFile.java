@@ -20,13 +20,18 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 
 import name.xumingjun.rest.bean.AbstractJsonBean;
+import name.xumingjun.util.ConfigConstants;
 import name.xumingjun.util.SessionAccessor;
 
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.ProgressListener;
 import org.apache.commons.fileupload.disk.DiskFileItemFactory;
 import org.apache.commons.fileupload.servlet.ServletFileUpload;
-
+/**
+ * handle file related HTTP calls via REST
+ * @author mingjun
+ *
+ */
 @Path("/files")
 public class WebFile {
 
@@ -34,7 +39,7 @@ public class WebFile {
 	private HttpServletRequest request;
 	private final static int BUFF_SIZE = 1024;
 	private final static int MAX_FILE_SIZE = 1024 * 1024 * 1024;
-	public final static File PARENCT_DIR = new File("/home/mingjun/www/share/");
+	public final static File PARENT_DIR = new File(ConfigConstants.UPLOAD_PARENT_DIRECTORY);
 	public final static String PARENCT_DIR_URL = "/share/";
 	public final static String OBSERVERABLE_KEY_IN_SESSION = "file-upload-status-Observable";
 	public final static String QUEUE_KEY_IN_SESSION = "file-upload-status-queue";
@@ -43,11 +48,11 @@ public class WebFile {
 	}
 	public Map<String, FileInfo> fileLookup = new HashMap<String, FileInfo>();
 	static {
-		if(!PARENCT_DIR.isDirectory()) {
-			PARENCT_DIR.delete();
+		if(!PARENT_DIR.isDirectory()) {
+			PARENT_DIR.delete();
 		}
-		if(!PARENCT_DIR.exists()) {
-			PARENCT_DIR.mkdirs();
+		if(!PARENT_DIR.exists()) {
+			PARENT_DIR.mkdirs();
 		}
 	}
 	@POST
@@ -58,7 +63,7 @@ public class WebFile {
 		ArrayList<UploadedResult> array = new ArrayList<UploadedResult>();
 		DiskFileItemFactory factory = new DiskFileItemFactory();
 		factory.setSizeThreshold(BUFF_SIZE);
-		factory.setRepository(PARENCT_DIR);
+		factory.setRepository(PARENT_DIR);
 
 		ServletFileUpload upload = new ServletFileUpload(factory);
 		upload.setSizeMax(MAX_FILE_SIZE);
@@ -71,9 +76,9 @@ public class WebFile {
 				FileItem fi = (FileItem) item;
 				String fileName = fi.getName();
 				if (!fi.isFormField() && fileName.length() != 0 ) {
-					File newFile = new File(PARENCT_DIR, fileName);
+					File newFile = new File(PARENT_DIR, fileName);
 					if(newFile.exists()) {
-						newFile = createPeerFile(PARENCT_DIR, fileName);
+						newFile = createPeerFile(PARENT_DIR, fileName);
 					}
 					fi.write(newFile);
 					UploadedResult fileInfo = new UploadedResult();
@@ -132,7 +137,7 @@ public class WebFile {
 		File newFile = null;
 		do {
 			String newName = pre + "_"+(i++) + ext;
-			newFile = new File(PARENCT_DIR, newName);
+			newFile = new File(PARENT_DIR, newName);
 		} while(newFile.exists());
 		return newFile;
 	}
