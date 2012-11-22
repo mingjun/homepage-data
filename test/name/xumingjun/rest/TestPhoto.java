@@ -12,25 +12,26 @@ public class TestPhoto {
 	Photo t = new Photo();
 	@Test
 	public void testQueryPhotoList() {
-		System.out.println(t.queryPhotoList("pic"));
+		System.out.println(t.queryPhotoList("wenxin"));
 	}
 
 	@Test
 	public void testGetPhotoList() {
-		System.out.println(t.getPhotoList("pic"));
+		System.out.println(t.getPhotoList("wenxin"));
 	}
 	@Test
 	public void testGetPhotoSize() {
-		String s = AbstractJsonBean.gson.toJson(t.generatePhotoInfo("/share/pic/e\u003dmc2.png"));
+		String s = AbstractJsonBean.gson.toJson(t.generatePhotoInfo("/share/wenxin/7.JPG"));
 		System.out.println(s);
 	}
 
 	@Test
 	public void testGetPhotoWithDetails() {
 		List<String> urls = new ArrayList<String>();
-		urls.add("/share/pic/e\u003dmc2.png");
-		urls.add("/share/pic/code_html.jpeg");
+		urls.add("/share/wenxin/1.jpeg");
+		urls.add("/share/wenxin/2.png");
 		String photoURLs =  AbstractJsonBean.gson.toJson(urls);
+		System.out.println(photoURLs);
 		System.out.println(t.getPhotoWithDetails(photoURLs));
 	}
 }
