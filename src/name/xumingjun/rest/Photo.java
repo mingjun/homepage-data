@@ -68,11 +68,12 @@ public class Photo {
 
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
+	@Path("/details")
 	public String getPhotoWithDetails(@QueryParam("photoURLs") String photoURLs) {
-		List<String> urls =  AbstractJsonBean.arrayFromJson(photoURLs, String.class);
-		List<PhotoInfo> photos = new ArrayList<PhotoInfo>(urls.size());
-		for(String url: urls) {
-			photos.add(generatePhotoInfo(url));
+		List<PhotoInfo> raw =  AbstractJsonBean.arrayFromJson(photoURLs, PhotoInfo.class);
+		List<PhotoInfo> photos = new ArrayList<PhotoInfo>(raw.size());
+		for(PhotoInfo r: raw) {
+			photos.add(generatePhotoInfo(r.url));
 		}
 		return AbstractJsonBean.gson.toJson(photos);
 	}
@@ -82,7 +83,6 @@ public class Photo {
 		info.url = url;
 		info.name = url.substring(url.lastIndexOf("/")+1);
 		String localPath = info.url.replace(WWW_ROOT, LOCAL_ROOT);
-		System.out.println(localPath);
 		try {
 			BufferedImage image = ImageIO.read(new File(localPath));
 			info.width = image.getWidth();
