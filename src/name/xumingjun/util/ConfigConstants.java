@@ -6,8 +6,8 @@ package name.xumingjun.util;
  */
 public class ConfigConstants {
 	public static final String
-		VISIT_LOG_FILE = "/home/mingjun/www/visit.log",
-		UPLOAD_PARENT_DIRECTORY = "/home/mingjun/www/share/",
-		SEARCH_INDEX_DIRECTORY = "/home/mingjun/index"
+		VISIT_LOG_FILE = "/home/mingjun/sites/www/visit.log",
+		UPLOAD_PARENT_DIRECTORY = "/home/mingjun/sites/www/share/",
+		SEARCH_INDEX_DIRECTORY = "/home/mingjun/sites/index"
 		;
 }
