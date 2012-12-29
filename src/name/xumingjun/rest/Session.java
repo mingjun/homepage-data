@@ -26,7 +26,7 @@ public class Session {
 	 */
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
-	public String GetUploadResult() {
+	public String getSessionId() {
 		String sessionId = request.getSession().getId();
 		return AbstractJsonBean.gson.toJson(sessionId);
 	}
