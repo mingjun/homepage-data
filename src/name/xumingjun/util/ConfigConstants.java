@@ -35,7 +35,6 @@ public class ConfigConstants {
 			e.printStackTrace();
 			hostPath = ".";
 		}
-		System.out.println(hostPath);
 		return hostPath;
 	}
 
