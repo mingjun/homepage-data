@@ -33,7 +33,7 @@ public class FileUploadStatusServlet extends WebSocketServlet {
 	}
 
 	@Override
-	protected StreamInbound createWebSocketInbound(String arg0) {
+	protected StreamInbound createWebSocketInbound(String arg0, HttpServletRequest arg1) {
 		return new ProgressPipeIn(progressTarget);
 	}
 }

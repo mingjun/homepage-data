@@ -1,19 +1,11 @@
 package name.xumingjun.rest;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,7 +15,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
 import name.xumingjun.rest.bean.AbstractJsonBean;
-import name.xumingjun.rest.bean.VisitInfo;
 import name.xumingjun.util.CodeBeautifier;
 /**
  * handle host(computer/server) related RESTful calls
@@ -112,175 +103,5 @@ public class Host {
 			this.upTime = uptime;
 		}
 	}
-
-	static long statisticsJsonGenerateTime = 0l;
-	static String statisticsJson = "{}";
-	/**
-	 * get Visit statistics
-	 * @return JSON
-	 */
-	@GET
-	@Path("/statistics")
-	@Produces(MediaType.APPLICATION_JSON)
-	public String getStatistics() {
-		final long now = System.currentTimeMillis();
-
-		Calendar cal1 = Calendar.getInstance();
-		cal1.setTimeInMillis(statisticsJsonGenerateTime);
-		Calendar cal2 = Calendar.getInstance();
-		cal2.setTimeInMillis(now);
-		// in the same year & month, Monthly statistics never change
-		if(cal1.get(Calendar.MONTH) == cal2.get(Calendar.MONTH) && cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR)) {
-			return statisticsJson;
-		}
-
-		BufferedReader br = null;
-		String result;
-		try {
-			br = new BufferedReader(new FileReader(VisitInfo.LOG_FILE));
-			MonthlyStatisticsBuilder st = new MonthlyStatisticsBuilder();
-			String line = null;
-			while(null != (line = br.readLine())) {
-				VisitInfo info = VisitInfo.parseLine(line);
-				st.accumulate(info);
-			}
-			result = st.buildAll();
-		} catch (Exception e) {
-			e.printStackTrace();
-			result = "{}";
-		} finally {
-			CodeBeautifier.close(br);
-		}
-		statisticsJsonGenerateTime = now;
-		return (statisticsJson = result);
-	}
-}
-class MonthlyStatistics extends AbstractJsonBean {
-	List<AxisPoint> points;
-	List<AxisLabel> xAxisLables;
-}
-
-class MonthlyStatisticsBuilder {
-	private static class BaseTime {
-		private static long time = 0; //2000.01.01 local time
-		static {
-			Calendar cal = Calendar.getInstance();
-			cal.set(Calendar.YEAR, 2000);
-			cal.set(Calendar.MONTH, Calendar.JANUARY);
-			cal.set(Calendar.DATE, 1);
-			cal.set(Calendar.HOUR_OF_DAY, 0);
-			cal.set(Calendar.MINUTE, 0);
-			cal.set(Calendar.SECOND, 0);
-			cal.set(Calendar.MILLISECOND, 0);
-			time = cal.getTimeInMillis();
-		}
-		public static long getTime() {
-			return time;
-		}
-	}
-	public static long getBaseTime () {
-		return BaseTime.getTime();
-	}
-	// map: time(month) -> a set of IP
-	Map<Long, Set<String>> data4UniqueIPs = new HashMap<Long, Set<String>>();
-	Calendar cal = Calendar.getInstance();
-	final long START_OF_CURRENT_MONTH = unifyTime(System.currentTimeMillis());
-	/**
-	 * accumulate one visit-info into the statistics
-	 * @param info
-	 */
-	public void accumulate(VisitInfo info) {
-		long key = unifyTime(info.timestamp);
-		Set<String> ips;
-		if(!data4UniqueIPs.containsKey(key)) {
-			ips = new HashSet<String>();
-			data4UniqueIPs.put(key, ips);
-		} else {
-			ips = data4UniqueIPs.get(key);
-		}
-		ips.add(info.remoteAddr);
-	}
-	// unify the time to the start-time of the nearest month
-	private long unifyTime(long t) {
-		cal.setTimeInMillis(t);
-		int year = cal.get(Calendar.YEAR);
-		int month = cal.get(Calendar.MONTH);
-		cal.setTimeInMillis(getBaseTime());
-		cal.set(Calendar.YEAR, year);
-		cal.set(Calendar.MONTH, month);
-		return cal.getTimeInMillis();
-	}
-
-	final int MAX_MONTH = 8;
-	private List<AxisPoint> buildAxisPoints4UniqueIps() {
-		cal.setTimeInMillis(getBaseTime());
-		int baseYear = cal.get(Calendar.YEAR);
-		int baseMonth = cal.get(Calendar.MONTH);
-		Set<Long> keyset = data4UniqueIPs.keySet();
-		// if more that 1 month, ignore the current month
-		if(keyset.size() > 1) {
-			data4UniqueIPs.remove(START_OF_CURRENT_MONTH);
-		}
-		List<Long> keyArray = new ArrayList<Long>(keyset.size());
-		keyArray.addAll(keyset);
-		Collections.sort(keyArray);
-		int len = keyArray.size();
-		if(len > MAX_MONTH) {
-			keyArray = keyArray.subList(len-MAX_MONTH, len);
-		}
-
-		ArrayList<AxisPoint> array = new ArrayList<AxisPoint>(keyset.size());
-		for(Long key: keyArray) {
-			AxisPoint item = new AxisPoint();
-			cal.setTimeInMillis(key);
-			int year = cal.get(Calendar.YEAR);
-			int month = cal.get(Calendar.MONTH);
-			item.x = (year-baseYear)*12 + month-baseMonth;
-			item.detail = data4UniqueIPs.get(key);
-			item.y = item.detail.size();
-			array.add(item);
-		}
-		return array;
-	}
-	final static SimpleDateFormat  FORMATER = new SimpleDateFormat("yyyy-MM");
-	private List<AxisLabel> buildAxisLabels(List<AxisPoint> pointArray) {
-		if(pointArray.size() <= 0) {
-			return new ArrayList<AxisLabel>(0);
-		}
-		int min = pointArray.get(0).x;
-		int max = pointArray.get(pointArray.size()-1).x;
-		cal.setTimeInMillis(getBaseTime());
-		cal.add(Calendar.MONTH, min);
-		ArrayList<AxisLabel> array = new ArrayList<AxisLabel>(max-min+1);
-		for(int i=min;i<=max;i++) {
-			AxisLabel item = new AxisLabel();
-			item.value = i;
-			item.text = FORMATER.format(cal.getTime());
-			array.add(item);
-			cal.add(Calendar.MONTH, 1);
-		}
-		return array;
-	}
-	public String buildAll() {
-		MonthlyStatistics o = new MonthlyStatistics();
-		o.points = this.buildAxisPoints4UniqueIps();
-		o.xAxisLables = this.buildAxisLabels(o.points);
-		return o.toJson();
-	}
-}
-
-class AxisPoint implements Comparable<AxisPoint>{
-	int x;
-	int y;
-	Set<String> detail;
-	@Override
-	public int compareTo(AxisPoint other) {
-		return this.x - other.x;
-	}
-}
-
-class AxisLabel {
-	int value;
-	String text;
 }
 
