@@ -1,7 +1,5 @@
 package name.xumingjun.rest;
 
-import org.junit.Test;
-
 public class TestHost {
 	Host host = new Host();
 //	@Test
@@ -19,9 +17,4 @@ public class TestHost {
 			System.out.println(host.parseUpTime(raw));
 		}
 	}
-	@Test
-	public void testStatistics() {
-		System.out.println(host.getStatistics());
-	}
-
 }
