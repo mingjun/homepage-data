@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO ADD dependence
+ ref: http://www.avajava.com/tutorials/lessons/how-do-i-deploy-to-tomcat-using-ant.html -->
+<project name="deploy_tomcat" default="war" basedir=".">
+	<property name="project-name" value="data" />
+	<property name="builder" value="xmj" />
+	<property name="war-file-name" value="${project-name}.war.zip" />
+	<property name="source-directory" value="src" />
+	<property name="classes-directory" value="bin" />
+	<property name="web-directory" value="WebContent" />
+	<tstamp prefix="build-info">
+		<format property="current-date" pattern="d-MMMM-yyyy" locale="en" />
+		<format property="current-time" pattern="hh:mm:ss a z" locale="en" />
+		<format property="year-month-day" pattern="yyyy-MM-dd" locale="en" />
+	</tstamp>
+	<property name="build-directory" value="build" />
+	
+	<target name="war" depends="">
+		<mkdir dir="${build-directory}" />
+		<delete file="${build-directory}/${war-file-name}" />
+		<war warfile="${build-directory}/${war-file-name}" needxmlfile='false'>
+			<classes dir="${classes-directory}" />
+			<fileset dir="${web-directory}">
+			</fileset>
+			<manifest>
+				<attribute name="Built-By" value="${builder}" />
+				<attribute name="Built-On" value="${build-info.current-date}" />
+				<attribute name="Built-At" value="${build-info.current-time}" />
+			</manifest>
+		</war>
+	</target>
+</project>
