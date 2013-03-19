@@ -4,10 +4,12 @@
 <project name="deploy_tomcat" default="war" basedir=".">
 	<property name="project-name" value="data" />
 	<property name="builder" value="xmj" />
-	<property name="war-file-name" value="${project-name}.war.zip" />
+	<property name="war-file-name" value="${project-name}.war" />
 	<property name="source-directory" value="src" />
+	<property name="build-directory" value="build" />
 	<property name="classes-directory" value="build/classes" />
 	<property name="web-directory" value="WebContent" />
+	<property name="common-build" value="../common/build" />
 	<property name="tomcat-home" value="/Applications/apache-tomcat-7.0.37" />
 
 	<tstamp prefix="build-info">
@@ -15,36 +17,56 @@
 		<format property="current-time" pattern="hh:mm:ss a z" locale="en" />
 		<format property="year-month-day" pattern="yyyy-MM-dd" locale="en" />
 	</tstamp>
-	<property name="build-directory" value="build" />
+	
 	<target name="buildPath" depends="">
 		<mkdir dir="${build-directory}" />
+		<mkdir dir="${classes-directory}" />
+		
+	</target>
+	<target name="copyDependencis" depends="buildPath">
+		<mkdir dir="${build-directory}/lib" />
+		<copy todir="${build-directory}/lib">
+			<fileset dir="${common-build}" >
+				<include name="*.jar"/>
+			</fileset>
+			<fileset dir="${common-build}/lib" >
+				<include name="*.jar"/>
+			</fileset>
+		</copy>
 	</target>
 
 	<path id="compile.classpath">
 		<fileset dir="${web-directory}/WEB-INF/lib">
 			<include name="*.jar"/>
 		</fileset>
+		<fileset dir="${build-directory}/lib/">
+			<include name="*.jar"/>
+		</fileset>
 		<fileset dir="${tomcat-home}/lib/">
 			<include name="*.jar"/>
 		</fileset>
 	</path>
-	<target name="compile" depends="buildPath">
+	<target name="compile" depends="buildPath, copyDependencis">
 		<javac srcdir="${source-directory}" destdir="${classes-directory}" includeantruntime="true">
 			<classpath refid="compile.classpath"/>
 		</javac>
 	</target>
-	<target name="war" depends="compile">
 
+	<target name="war" depends="compile">
 		<delete file="${build-directory}/${war-file-name}" />
 		<war warfile="${build-directory}/${war-file-name}" needxmlfile='false'>
 			<classes dir="${classes-directory}" />
-			<fileset dir="${web-directory}">
-			</fileset>
+			<fileset dir="${web-directory}" />
+			<lib dir="${build-directory}/lib/" />
 			<manifest>
 				<attribute name="Built-By" value="${builder}" />
 				<attribute name="Built-On" value="${build-info.current-date}" />
 				<attribute name="Built-At" value="${build-info.current-time}" />
 			</manifest>
 		</war>
+	</target>
+
+	<target name="clear" depends="">
+		<delete dir="${build-directory}"></delete>
 	</target>
 </project>
