@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO ADD dependence
- ref: http://www.avajava.com/tutorials/lessons/how-do-i-deploy-to-tomcat-using-ant.html -->
 <project name="deploy_tomcat" default="war" basedir=".">
 	<property name="project-name" value="data" />
 	<property name="builder" value="xmj" />
