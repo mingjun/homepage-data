@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- TODO ADD dependence
- ref: http://www.avajava.com/tutorials/lessons/how-do-i-deploy-to-tomcat-using-ant.html -->
+<!DOCTYPE project>
 <project name="deploy_tomcat" default="war" basedir=".">
 	<property name="project-name" value="data" />
 	<property name="builder" value="xmj" />
@@ -9,8 +8,9 @@
 	<property name="build-directory" value="build" />
 	<property name="classes-directory" value="build/classes" />
 	<property name="web-directory" value="WebContent" />
-	<property name="common-build" value="../common/build" />
-	<property name="tomcat-home" value="/Applications/apache-tomcat-7.0.37" />
+	<property name="common-project-build" value="../common/build" />
+	<property name="search-project-build" value="../search/build" />
+	<property name="tomcat-home" value="/Applications/apache-tomcat" />
 
 	<tstamp prefix="build-info">
 		<format property="current-date" pattern="d-MMMM-yyyy" locale="en" />
@@ -19,17 +19,15 @@
 	</tstamp>
 	
 	<target name="buildPath" depends="">
-		<mkdir dir="${build-directory}" />
-		<mkdir dir="${classes-directory}" />
-		
+		<mkdir dir="${build-directory}/" />
 	</target>
 	<target name="copyDependencis" depends="buildPath">
 		<mkdir dir="${build-directory}/lib" />
 		<copy todir="${build-directory}/lib">
-			<fileset dir="${common-build}" >
+			<fileset dir="${common-project-build}" >
 				<include name="*.jar"/>
 			</fileset>
-			<fileset dir="${common-build}/lib" >
+			<fileset dir="${search-project-build}" >
 				<include name="*.jar"/>
 			</fileset>
 		</copy>
@@ -47,6 +45,7 @@
 		</fileset>
 	</path>
 	<target name="compile" depends="buildPath, copyDependencis">
+		<mkdir dir="${classes-directory}"/>
 		<javac srcdir="${source-directory}" destdir="${classes-directory}" includeantruntime="true">
 			<classpath refid="compile.classpath"/>
 		</javac>
