@@ -60,7 +60,7 @@ public class Photo {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			CodeBeautifier.close(in);
+			CodeBeautifier.finallyClose(in);
 		}
 		Collections.sort(photoNames);
 		return photoNames;
@@ -119,7 +119,7 @@ public class Photo {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			CodeBeautifier.close(in);
+			CodeBeautifier.finallyClose(in);
 		}
 		return info;
 	}

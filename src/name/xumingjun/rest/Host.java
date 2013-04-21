@@ -69,7 +69,7 @@ public class Host {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			CodeBeautifier.close(in);
+			CodeBeautifier.finallyClose(in);
 		}
 		return hw;
 	}
@@ -84,7 +84,7 @@ public class Host {
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			CodeBeautifier.close(in);
+			CodeBeautifier.finallyClose(in);
 		}
 		return uptime;
 	}
