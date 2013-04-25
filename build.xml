@@ -8,9 +8,9 @@
 	<property name="build-directory" value="build" />
 	<property name="classes-directory" value="build/classes" />
 	<property name="web-directory" value="WebContent" />
-	<property name="common-project-build" value="../common/build" />
 	<property name="search-project-build" value="../search/build" />
 	<property name="tomcat-home" value="/Applications/apache-tomcat" />
+	<property name="common-project" location="../common"/>
 
 	<tstamp prefix="build-info">
 		<format property="current-date" pattern="d-MMMM-yyyy" locale="en" />
@@ -22,9 +22,10 @@
 		<mkdir dir="${build-directory}/" />
 	</target>
 	<target name="copyDependencis" depends="buildPath">
+		<ant target="build" dir="${common-project}"/>
 		<mkdir dir="${build-directory}/lib" />
 		<copy todir="${build-directory}/lib">
-			<fileset dir="${common-project-build}" >
+			<fileset dir="${common-project}/build" >
 				<include name="*.jar"/>
 			</fileset>
 			<fileset dir="${search-project-build}" >
