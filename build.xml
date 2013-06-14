@@ -17,7 +17,7 @@
 		<format property="current-time" pattern="hh:mm:ss a z" locale="en" />
 		<format property="year-month-day" pattern="yyyy-MM-dd" locale="en" />
 	</tstamp>
-	
+
 	<target name="buildPath" depends="">
 		<mkdir dir="${build-directory}/" />
 	</target>
@@ -51,7 +51,7 @@
 		</javac>
 	</target>
 
-	<target name="war" depends="compile">
+	<target name="war" depends="compile, setPath">
 		<delete file="${build-directory}/${war-file-name}" />
 		<war warfile="${build-directory}/${war-file-name}" needxmlfile='false'>
 			<classes dir="${classes-directory}" />
@@ -64,6 +64,14 @@
 			</manifest>
 		</war>
 	</target>
+
+	<target name="setPath">
+		<echo message="HOST_PATH=/home/mingjun/sites/xmj/" file="${web-directory}/WEB-INF/web.properties" />
+	</target>
+	<target name="setPathMac">
+		<echo message="HOST_PATH=/Users/mingjun/Sites/www" file="${web-directory}/WEB-INF/web.properties" />
+	</target>
+
 
 	<target name="clear" depends="">
 		<delete dir="${build-directory}"></delete>
