@@ -9,6 +9,7 @@
 	<property name="classes-directory" value="build/classes" />
 	<property name="web-directory" value="WebContent" />
 	<property name="search-project" value="../search" />
+	<property name="store-project" value="../store" />
 	<property name="tomcat-home" value="/Applications/apache-tomcat" />
 	<property name="common-project" location="../common"/>
 
@@ -26,6 +27,7 @@
 	<target name="copyDependencis" depends="buildPath">
 		<ant target="build" dir="${common-project}"/>
 		<ant target="build" dir="${search-project}"/>
+		<ant target="build" dir="${store-project}"/>
 
 		<copy todir="${build-directory}/lib">
 			<fileset dir="${common-project}/build" >
@@ -34,9 +36,15 @@
 			<fileset dir="${search-project}/build" >
 				<include name="*.jar"/>
 			</fileset>
+			<fileset dir="${store-project}/build" >
+				<include name="*.jar"/>
+			</fileset>
 		</copy>
 		<copy todir="${build-directory}/externalLib">
 			<fileset dir="${search-project}/build/externalLib" >
+				<include name="*.jar"/>
+			</fileset>
+			<fileset dir="${store-project}/build/externalLib" >
 				<include name="*.jar"/>
 			</fileset>
 		</copy>

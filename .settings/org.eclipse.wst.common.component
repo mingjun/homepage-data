@@ -10,6 +10,9 @@
         <dependent-module archiveName="search.jar" deploy-path="/WEB-INF/lib" handle="module:/resource/search/search">
             <dependency-type>uses</dependency-type>
         </dependent-module>
+        <dependent-module archiveName="store.jar" deploy-path="/WEB-INF/lib" handle="module:/resource/store/store">
+            <dependency-type>uses</dependency-type>
+        </dependent-module>
         <property name="context-root" value="data"/>
         <property name="java-output-path" value="/data/build/classes"/>
     </wb-module>

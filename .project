@@ -5,6 +5,7 @@
 	<projects>
 		<project>common</project>
 		<project>search</project>
+		<project>store</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
